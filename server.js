@@ -1,5 +1,25 @@
+const express = require("express");
+const http = require("http");
 const WebSocket = require("ws");
-const wss = new WebSocket.Server({ port: 8080 });
+const helmet = require("helmet");
+
+const app = express();
+
+// Use Helmet to set proper Content-Security-Policy
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                connectSrc: ["'self'", "wss://rajpatil-production.up.railway.app"]
+            }
+        }
+    })
+);
+
+const PORT = process.env.PORT || 8080;
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
 const clients = {}; // Store clients by clientId
 
@@ -11,30 +31,24 @@ wss.on("connection", (ws) => {
             const data = JSON.parse(message);
             console.log("Received:", data);
 
-            // if (data.type === "Mobile Scanned"){
-            //     const selectedData = data.data 
-            //     const client =clients[data.clientID]
-            //     client.send
-            // }
             if (data.type === "register") {
-                // Register the QR Display Webpage
                 clients[data.clientId] = ws;
                 console.log(`Client registered: ${data.clientId}`);
-
             } else if (data.type === "shareData") {
                 if (!data.clientId) {
                     console.warn("Missing clientId in shareData request.");
                     return;
                 }
 
-                // Forward data to the registered client
                 const targetClient = clients[data.clientId];
 
                 if (targetClient && targetClient.readyState === WebSocket.OPEN) {
-                    targetClient.send(JSON.stringify({
-                        type: "receivedData",
-                        payload: data.payload
-                    }));
+                    targetClient.send(
+                        JSON.stringify({
+                            type: "receivedData",
+                            payload: data.payload
+                        })
+                    );
                     console.log(`Data sent to ${data.clientId}:`, data.payload);
                 } else {
                     console.warn(`Client ${data.clientId} not found or disconnected.`);
@@ -46,7 +60,6 @@ wss.on("connection", (ws) => {
     });
 
     ws.on("close", () => {
-        // Remove disconnected clients
         for (const clientId in clients) {
             if (clients[clientId] === ws) {
                 console.log(`Client ${clientId} disconnected.`);
@@ -57,4 +70,6 @@ wss.on("connection", (ws) => {
     });
 });
 
-console.log("WebSocket server running on ws://localhost:8080");
+server.listen(PORT, () => {
+    console.log(`WebSocket server running on ws://localhost:${PORT}`);
+});

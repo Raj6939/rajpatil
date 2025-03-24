@@ -2,9 +2,15 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const helmet = require("helmet");
-
+const cors = require('cors')
 const app = express();
 
+app.use(
+    cors({
+        origin: "*", // ⚠️ Use specific origins in production for security
+        methods: ["GET", "POST"]
+    })
+);
 // Use Helmet to set proper Content-Security-Policy
 app.use(
     helmet({
@@ -17,7 +23,7 @@ app.use(
     })
 );
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5001;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -68,7 +74,11 @@ wss.on("connection", (ws) => {
             }
         }
     });
+    ws.on("error", (error) => {
+        console.error("❌ WebSocket error:", error);
+    });
 });
+
 
 server.listen(PORT, () => {
     console.log(`WebSocket server running on ws://localhost:${PORT}`);
